@@ -92,6 +92,24 @@ describe('expect', function () {
     expect(itThrowsSometimes).withArgs(true, true).to.not.throwException();
   });
 
+  it('should test for promise exceptions', function () {
+    var itThrows = new Promise(function(resolve, reject) {
+      reject(new Error('aaa'));
+    });
+
+    var itWorks = new Promise(function(resolve, reject) {
+      resolve();
+    });
+
+    expect(itThrows).to.throwException();
+    expect(itWorks).to.not.throwException();
+
+    expect(function badExpect() {
+      expect(itThrows).to.not.throwException();
+    }).to.throwException();
+
+  });
+
   it('should test for exceptions', function () {
     function itThrows () {
       a.b.c;
@@ -221,6 +239,11 @@ describe('expect', function () {
     err(function () {
       expect(null).to.be.an('object');
     }, 'expected null to be an object');
+  });
+
+  it('should test Promises', function () {
+    var foo = new Promise(function(){});
+    expect(foo).to.be.a(Promise);
   });
 
   it('should test .equal()', function () {

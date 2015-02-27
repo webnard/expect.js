@@ -1,4 +1,5 @@
 (function (global, module) {
+  var co = require('co');
 
   var exports = module.exports;
 
@@ -141,14 +142,30 @@
   Assertion.prototype['throw'] =
   Assertion.prototype.throwError =
   Assertion.prototype.throwException = function (fn) {
-    expect(this.obj).to.be.a('function');
+    var is_promise = this.obj instanceof Promise;
 
-    var thrown = false
-      , not = this.flags.not;
+    if(!is_promise) {
+      expect(this.obj).to.be.a('function');
+    }
 
-    try {
-      this.obj();
-    } catch (e) {
+    var not = this.flags.not,
+        thrown = false,
+        promise = this.obj;
+    
+    var done = function(thrown) {
+      if (isRegExp(fn) && not) {
+        // in the presence of a matcher, ensure the `not` only applies to
+        // the matching.
+        this.flags.not = false;
+      }
+      var name = this.obj.name || 'fn';
+      this.assert(
+          thrown
+        , function(){ return 'expected ' + name + ' to throw an exception' }
+        , function(){ return 'expected ' + name + ' not to throw an exception' });
+    }.bind(this);
+
+    var handleError = function(e) {
       if (isRegExp(fn)) {
         var subject = 'string' == typeof e ? e : e.message;
         if (not) {
@@ -160,19 +177,29 @@
         fn(e);
       }
       thrown = true;
-    }
+    }.bind(this);
 
-    if (isRegExp(fn) && not) {
-      // in the presence of a matcher, ensure the `not` only applies to
-      // the matching.
-      this.flags.not = false;
+    try {
+      if(!is_promise) {
+        promise = this.obj();
+      }
+      if(promise instanceof Promise) {
+        is_promise = true;
+      }
+      if(is_promise) {
+        promise.then(function() {
+          done(thrown);
+        });
+        promise.catch(function(e) {
+          handleError(e);
+          done(thrown);
+        });
+        return;
+      }
+    } catch (e) {
+      handleError(e);
     }
-
-    var name = this.obj.name || 'fn';
-    this.assert(
-        thrown
-      , function(){ return 'expected ' + name + ' to throw an exception' }
-      , function(){ return 'expected ' + name + ' not to throw an exception' });
+    done(thrown);
   };
 
   /**
