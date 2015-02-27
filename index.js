@@ -1,6 +1,4 @@
 (function (global, module) {
-  var co = require('co');
-
   var exports = module.exports;
 
   /**
